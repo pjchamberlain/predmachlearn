@@ -61,15 +61,15 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 <p>The data for this project come from this source: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a>.</p>
 <p>This study collected data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the study website: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset). If you use the document for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.</p>
 <p>The goal of this project is to predict the manner in which participants did the exercise. This is the “classe” variable in the training set.</p>
-<div id="building-the-model-to-predict-activity-quality-from-activity-monitors." class="section level1">
-<h1>Building the model to predict activity quality from activity monitors.</h1>
+<div id="building-the-model-to-predict-activity-quality-from-activity-monitors." class="section level2">
+<h2>Building the model to predict activity quality from activity monitors.</h2>
 <p>The steps were - Reading in the data from the csv files</p>
 <pre class="r"><code>##read in the data files
 pmltraining &lt;- read.csv(&quot;pml-training.csv&quot;,na.strings=c(&quot;NA&quot;,&quot;&quot;))
 pmltesting &lt;- read.csv(&quot;pml-testing.csv&quot;,na.strings=c(&quot;NA&quot;,&quot;&quot;))</code></pre>
 </div>
-<div id="inspecting-the-data-and-choosing-which-columns-to-use-as-predictors" class="section level1">
-<h1>Inspecting the data and choosing which columns to use as predictors:</h1>
+<div id="inspecting-the-data-and-choosing-which-columns-to-use-as-predictors" class="section level2">
+<h2>Inspecting the data and choosing which columns to use as predictors:</h2>
 <ol style="list-style-type: decimal">
 <li>Using the simplest approach any columns including one or more missing values were dropped. A more sophisticated approach would be to count the number of missing values and to apply a threshold.</li>
 </ol>
@@ -78,13 +78,13 @@ pmltesting &lt;- read.csv(&quot;pml-testing.csv&quot;,na.strings=c(&quot;NA&quot
 ## rough and ready approach, remove columns that aren't complete
 pmltraining2 &lt;- pmltraining[,colSums(is.na(pmltraining)) == 0]</code></pre>
 <ol start="2" style="list-style-type: decimal">
-<li>when building models the first 7 columns were dropped because they do not contain activity measures.</li>
+<li>When building models the first 7 columns were dropped because they do not contain activity measures.</li>
 </ol>
 </div>
-<div id="building-and-choosing-a-model" class="section level1">
-<h1>Building and choosing a model</h1>
+<div id="building-and-choosing-a-model" class="section level2">
+<h2>Building and choosing a model</h2>
 <ol style="list-style-type: decimal">
-<li>First attempt was a simple tree model: but the accuracy was only 50%</li>
+<li>First attempt was a simple tree model: but the accuracy was only 60%</li>
 </ol>
 <pre class="r"><code> ##load libraries
 library(caret)</code></pre>
@@ -133,7 +133,7 @@ confusionMatrix(pmltraining$classe,predict(modfit,pmltraining2))</code></pre>
 <ol start="2" style="list-style-type: decimal">
 <li>The second attempt was a random forest model with cross validation: because of performance limitations, the model was build on a small random sample of the training data.</li>
 </ol>
-<pre class="r"><code>##accuracy of the simple tree model was only 50%, so try a random forest model with a small, randomly selected set of observations
+<pre class="r"><code>##accuracy of the simple tree model was only 60%, so try a random forest model with a small, randomly selected set of observations
 ##define tune parameters to fit model with cross validation 
 ctrl &lt;- trainControl(method = &quot;repeatedcv&quot;, repeats = 5)
 
@@ -144,8 +144,8 @@ modfitrf &lt;- train(pmltraining2training$classe ~., method=&quot;rf&quot;, trCo
 ## randomForest 4.6-10
 ## Type rfNews() to see new features/changes/bug fixes.</code></pre>
 </div>
-<div id="cross-validation-and-the-expected-out-of-sample-error" class="section level1">
-<h1>Cross validation and the expected out of sample error</h1>
+<div id="cross-validation-and-the-expected-out-of-sample-error" class="section level2">
+<h2>Cross validation and the expected out of sample error</h2>
 <p>The random forest model had a much better accuracy of 90% when cross validated on the full set of training data.</p>
 <p>The test data does not contain the outcome variable ‘classe’ so it was not possible to verify the out of sample error, but it can be expected to be a little worse than the in sample error.</p>
 <pre class="r"><code>##better accuracy than a simple tree model, 90% on in sample data 
@@ -154,33 +154,33 @@ confusionMatrix(pmltraining$classe,predict(modfitrf,pmltraining2[,-c(1,2)]))</co
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 5365   87    7   42   79
-##          B  223 3401  133   34    6
-##          C   15  187 3159   58    3
-##          D   66    5  264 2866   15
-##          E    2   87   99   60 3359
+##          A 5450   68   32   16   14
+##          B  363 3221  192   21    0
+##          C   11  171 3096  141    3
+##          D   43   24  296 2836   17
+##          E    6  106  125   43 3327
 ## 
 ## Overall Statistics
-##                                         
-##                Accuracy : 0.925         
-##                  95% CI : (0.921, 0.929)
-##     No Information Rate : 0.289         
-##     P-Value [Acc &gt; NIR] : &lt;2e-16        
-##                                         
-##                   Kappa : 0.905         
-##  Mcnemar's Test P-Value : &lt;2e-16        
+##                                        
+##                Accuracy : 0.914        
+##                  95% CI : (0.91, 0.918)
+##     No Information Rate : 0.299        
+##     P-Value [Acc &gt; NIR] : &lt;2e-16       
+##                                        
+##                   Kappa : 0.891        
+##  Mcnemar's Test P-Value : &lt;2e-16       
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity             0.946    0.903    0.863    0.937    0.970
-## Specificity             0.985    0.975    0.984    0.979    0.985
-## Pos Pred Value          0.961    0.896    0.923    0.891    0.931
-## Neg Pred Value          0.978    0.977    0.969    0.988    0.994
-## Prevalence              0.289    0.192    0.187    0.156    0.176
-## Detection Rate          0.273    0.173    0.161    0.146    0.171
+## Sensitivity             0.928    0.897    0.828    0.928    0.990
+## Specificity             0.991    0.964    0.979    0.977    0.983
+## Pos Pred Value          0.977    0.848    0.905    0.882    0.922
+## Neg Pred Value          0.970    0.977    0.960    0.987    0.998
+## Prevalence              0.299    0.183    0.191    0.156    0.171
+## Detection Rate          0.278    0.164    0.158    0.145    0.170
 ## Detection Prevalence    0.284    0.194    0.174    0.164    0.184
-## Balanced Accuracy       0.965    0.939    0.923    0.958    0.977</code></pre>
+## Balanced Accuracy       0.959    0.931    0.904    0.952    0.986</code></pre>
 <pre class="r"><code>##error rate
 modfitrf$finalModel</code></pre>
 <pre><code>## 
@@ -190,18 +190,18 @@ modfitrf$finalModel</code></pre>
 ##                      Number of trees: 500
 ## No. of variables tried at each split: 27
 ## 
-##         OOB estimate of  error rate: 9.66%
+##         OOB estimate of  error rate: 8.65%
 ## Confusion matrix:
 ##     A   B   C   D   E class.error
-## A 268   5   1   5   0     0.03943
-## B  15 158  12   4   1     0.16842
-## C   0  15 156   0   1     0.09302
-## D   0   1  13 144   3     0.10559
-## E   2   7   6   4 162     0.10497</code></pre>
+## A 271   3   2   1   2     0.02867
+## B  16 157  13   3   1     0.17368
+## C   0   9 161   2   0     0.06395
+## D   0   0  13 147   1     0.08696
+## E   1   7   6   5 162     0.10497</code></pre>
 </div>
-<div id="using-the-prediction-model-to-predict-the-20-supplied-test-cases." class="section level1">
-<h1>Using the prediction model to predict the 20 supplied test cases.</h1>
-<p>The random forest model was used to predic the classe variable from the supplied test data.</p>
+<div id="using-the-prediction-model-to-predict-the-20-supplied-test-cases." class="section level2">
+<h2>Using the prediction model to predict the 20 supplied test cases.</h2>
+<p>The random forest model was used to predict the classe variable from the supplied test data.</p>
 <pre class="r"><code>##apply model to test data and write each result to a file for submission
 answers &lt;- predict(modfitrf,pmltesting)
 #load a function to write out each answer to an individual file :

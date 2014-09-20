@@ -13,73 +13,68 @@ https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
 
 The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. 
 
-This study collected data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the study website: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). If you use the document for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+This study collected data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways, classified as follows
 
-The goal of this project is to predict the manner in which participants did the exercise. This is the "classe" variable in the training set.
+1. exactly according to the specification (Class A)
+2. throwing the elbows to the front (Class B)
+3. lifting the dumbbell only halfway (Class C)
+4. lowering the dumbbell only halfway (Class D)
+5. throwing the hips to the front (Class E).
+
+More information is available from the study website: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). If you use the document for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+
+The goal of this project is to use the the recorded accelerometer data to predict the manner in which participants did the exercise - that is the "classe" variable in the training data set.
 
 ## Building the model to predict activity quality from activity monitors.
-
 The steps were
-- Reading in the data from the csv files
+- Reading in the data from the csv files and loading libraries
 ```{r}
 ##read in the data files
 pmltraining <- read.csv("pml-training.csv",na.strings=c("NA",""))
 pmltesting <- read.csv("pml-testing.csv",na.strings=c("NA",""))
 
-
+##load libraries
+library(caret)
+library(randomForest)
 ```
 ## Inspecting the data and choosing which columns to use as predictors: 
- 1. Using the simplest approach any columns including one or more missing values were dropped. A more sophisticated approach would be to count the number of missing values and to apply a threshold.
-```{r read_files}
+
+1. Using the simplest approach any columns including one or more missing values were dropped. A more sophisticated approach would be to count the number of missing values and to apply a threshold.
+
+2. When building models the first 7 columns were dropped because they do not contain activity measures. 
+```{r read_files, cache=TRUE}
 ## check columns have some data, empty strings were transformed to NA by read.csv
 #sapply(pmltraining, function(x) sum(is.na(x)))
 ## rough and ready approach, remove columns that aren't complete
 pmltraining2 <- pmltraining[,colSums(is.na(pmltraining)) == 0]
+
+## divide the training data into a train and validation set
+inTrain <- createDataPartition(pmltraining2$classe, p=0.5)[[1]]
+pmltraining2training <- pmltraining2[inTrain,-c(1,2,3,4,5,6,7)]
+pmltraining2validation <- pmltraining2[-inTrain,-c(1,2,3,4,5,6,7)]
 ```
- 
- 2. When building models the first 7 columns were dropped because they do not contain activity measures. 
- 
 ## Building and choosing a model
- 1. First attempt was a simple tree model: but the accuracy was only 60% 
-```{r simple_tree, cache=TRUE}
- ##load libraries
-library(caret)
-
-##define tune parameters to fit model with cross validation 
-ctrl <- trainControl(method = "repeatedcv", repeats = 5)
-
-##exclude first 7 columns that are not useful for prediction including row number and subject name
-#first try a simple tree model
-modfit <- train(pmltraining2$classe ~., method="rpart", trControl = ctrl, data=pmltraining2[,c(1,2,3,4,5,6,7)])
-#use model to predict in sample results
-confusionMatrix(pmltraining$classe,predict(modfit,pmltraining2))
-```
- 
-2. The second attempt was a random forest model with cross validation: because of performance limitations, the model was build on a small random sample of the training data.
+The First attempt was a simple tree model: but the accuracy was only 60%  The second attempt was a random forest model: the model was built on a random sample of the training data, leaving a validation set for cross validation. The number of trees was limited to 50 for preformance reasons, with an accuracy of 98%, there was little benefit in going beyond this.
 ```{r random_forest, cache=TRUE}
-##accuracy of the simple tree model was only 60%, so try a random forest model with a small, randomly selected set of observations
-##define tune parameters to fit model with cross validation 
-ctrl <- trainControl(method = "repeatedcv", repeats = 5)
+##accuracy of the simple tree model was only 60%, so try a random forest model with a randomly selected set of observations
+modfitrf <- randomForest(pmltraining2training$classe ~.,  ntree=50, data=pmltraining2training)
 
-inTrain <- createDataPartition(pmltraining2$classe, p=0.05)[[1]]
-pmltraining2training <- pmltraining2[inTrain,]
-modfitrf <- train(pmltraining2training$classe ~., method="rf", trControl = ctrl, data=pmltraining2training[,-c(1,2,3,4,5,6,7)])
 ```
 
 ## Cross validation and the expected out of sample error
-The random forest model had a much better accuracy of 90% when cross validated on the full set of training data. 
+The random forest model had a much better accuracy of 98% when cross validated on the validation set of training data. 
  
-The test data does not contain the outcome variable 'classe' so it was not possible to verify the out of sample error, but it can be expected to be a little worse than the in sample error.
+The test data does not contain the outcome variable 'classe' so it was not possible to verify the out of sample error, but it can be expected to be a little worse than the sample error from the validation data set.
 ```{r results}
 ##better accuracy than a simple tree model, 90% on in sample data 
-confusionMatrix(pmltraining$classe,predict(modfitrf,pmltraining2[,-c(1,2)]))
+confusionMatrix(pmltraining2validation$classe, predict(modfitrf,pmltraining2validation))
 
 ##error rate
 modfitrf$finalModel
 ```
 
 ## Using the prediction model to predict the 20 supplied test cases. 
-The random forest model was used to predict the classe variable from the supplied test data.
+The random forest model was used to predict the classe variable from the supplied test data. The result was in line with the accuracy predicted from cross validation.
 ```{r write_files}
 ##apply model to test data and write each result to a file for submission
 answers <- predict(modfitrf,pmltesting)
